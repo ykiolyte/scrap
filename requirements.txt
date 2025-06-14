@@ -1,0 +1,8 @@
+# ========= requirements.txt =========
+playwright==1.44.0          # движок браузерной автоматизации
+playwright-stealth==1.0.6   # маскировка Headless-режима
+pandas==2.2.2               # DataFrame → Excel
+openpyxl==3.1.2             # writer .xlsx
+beautifulsoup4==4.12.3      # HTML-парсер
+lxml==5.2.1                 # быстрый backend для bs4
+python-dotenv==1.0.1        # .env (по желанию)
