@@ -1,0 +1,5 @@
+__pacache__/
+data/
+env/
+scrapper/__pycache__/
+user_data/

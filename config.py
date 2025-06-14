@@ -4,7 +4,7 @@ import os, random
 
 ### TradeInData учётка
 TRADEINDATA_USER = os.getenv("TRADE_USER", "poiskzapchast@yandex.ru")
-TRADEINDATA_PASS = os.getenv("TRADE_PASS", "Trade2525")
+TRADEINDATA_PASS = os.getenv("TRADE_PASS", "Trade2510")
 
 ### Даты фильтра
 START_DATE = "01/01/2024"
@@ -25,10 +25,12 @@ LOGIN = "bbimba385"
 PWD   = "JiR3qrNcgt"
 
 IP_LIST = [
-    "45.10.156.196", "45.10.156.134", "217.194.153.11", "45.153.162.123",
-    "45.153.162.122", "45.153.163.193", "45.10.156.92",  "45.153.163.113",
-    "45.153.163.112",
+    "217.194.153.11"
 ]
+
+Disabled_IP_LIST = [ "45.153.162.123",
+    "45.153.162.122", "45.153.163.193", "45.10.156.92",  "45.153.163.113",
+    "45.153.163.112",]
 
 PROXY_POOL = [{"host": ip, "port": "50100", "user": LOGIN, "pass": PWD} for ip in IP_LIST]
 

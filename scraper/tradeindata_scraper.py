@@ -5,6 +5,9 @@ from playwright.sync_api import TimeoutError as PWTimeout
 from .browser_playwright import get_context
 from .utils import rnd_sleep, human_type, human_scroll, retry
 import config as cfg
+import time
+import csv
+import os
 
 # -------- URL & селекторы (февр-июн 2025) --------------
 BASE        = "https://www.tradeindata.com"
@@ -54,8 +57,8 @@ class TradeScraper:
 
         rnd_sleep((0.4, 0.8))
         self.page.click('input.btn_submit')          # «Sign In»
-        self.page.wait_for_selector("a[href*='/logout']",
-                                    timeout=60000)
+        # self.page.wait_for_selector("a[href*='/logout']",
+        #                             timeout=60000)
         print("✓ Вход выполнен.")
 
 
@@ -118,14 +121,93 @@ class TradeScraper:
     # ---------- основной обход ------
     def run(self):
         self.login()
-        for role in ("0","1"):                     # 0=import,1=export
-            for country in cfg.COUNTRIES:
-                print(f"{country}  ({'Imp' if role=='0' else 'Exp'})")
-                self.apply_filters(country, role)
-                links=self.collect_links(cfg.MAX_COMPANIES_PER_COUNTRY)
-                print("  links:",len(links))
-                random.shuffle(links)
-                for lnk in links: self.parse_company(lnk,country,role)
+        # for role in ("0","1"):                     # 0=import,1=export
+        #     for country in cfg.COUNTRIES:
+        #         print(f"{country}  ({'Imp' if role=='0' else 'Exp'})")
+        #         self.apply_filters(country, role)
+        #         links=self.collect_links(cfg.MAX_COMPANIES_PER_COUNTRY)
+        #         print("  links:",len(links))
+        #         random.shuffle(links)
+        #         for lnk in links: self.parse_company(lnk,country,role)
+        data_dir = "./data"
+        csv_files = sorted(
+            [f for f in os.listdir(data_dir) if f.endswith("_items.csv")],
+            key=lambda x: int(x.split("_")[0]) if x.split("_")[0].isdigit() else 0
+        )
+        all_links = []
+        for csv_file in csv_files:
+            csv_path = os.path.join(data_dir, csv_file)
+            with open(csv_path, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    all_links.append(row["link"])
+
+        print(f"Всего ссылок из файлов: {len(all_links)}")
+        for lnk in all_links:
+            print(f"Обработка {lnk}")
+            # self.parse_company(BASE + lnk, "Unknown", "Unknown")
+            try:
+                self.page.goto("https://www.tradeindata.com" + lnk, wait_until="domcontentloaded", timeout=60000)
+                self.page.wait_for_selector(".highcharts-data-label", timeout=60000)
+                labels = self.page.query_selector_all(".highcharts-data-label")
+                print(f"Найдено {len(labels)} элементов с классом highcharts-data-label")
+                for i, label in enumerate(labels, 1):
+                    print(f"{i}: {label.inner_text()}")
+            except:
+                print(f"Ошибка при переходе на {lnk}, пропускаем.")
+                continue
+
+
+
+
+
+    def get_items(self):
+        print("→ Перенаправляем на страницу покупателя…")
+        time.sleep(10)
+        response = self.page.goto("https://www.tradeindata.com/buyer/?CId=eJwzNDY2MDA0AgAFcwFb", wait_until="domcontentloaded", timeout=60000)
+        time.sleep(10)
+        print(response.status)
+        print(response.url)
+        def get_links():
+            all_links = []
+            page = 0
+            while True:
+                self.page.wait_for_selector("li.page_last a.page_button", timeout=60000)
+                html = self.page.content()
+                soup = BeautifulSoup(html, "lxml")
+                items = soup.find_all("div", class_="item")
+
+                new_links = [
+                    a["href"] for item in items
+                    if (a := item.find("a")) and a.has_attr("href") and a["href"].startswith("/detail/")
+                ]
+                print("Ссылки на этой странице:", new_links)
+                all_links.extend(new_links)
+                # Save new_links to CSV file for each page
+                csv_filename = f"./data/{page}_items.csv"
+                with open(csv_filename, "w", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(["link"])
+                    for link in new_links:
+                        writer.writerow([link])
+                print(f"Сохранено {len(new_links)} ссылок в файл {csv_filename}")
+                page += 1
+
+                next_btn = self.page.query_selector("li.page_last a.page_button")
+                if next_btn:
+                    print("Переход на следующую страницу…")
+                    next_btn.click()
+                    self.page.wait_for_load_state("networkidle", timeout=60000)
+                else:
+                    print("Кнопка 'Следующая страница' не найдена. Конец.")
+                    break
+
+            print("Всего ссылок собрано:", len(all_links))
+            return all_links
+        links = get_links()
+        return links
+
+
 
     # ---------- сохранить Excel -----
     def save(self, path):
